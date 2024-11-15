@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: black;
+            touch-action: none;
+            font-family: Arial, sans-serif;
+        }
+        #gameCanvas {
+            border: 2px solid white;
+            max-width: 100%;
+            max-height: 100vh;
+            touch-action: none;
+        }
+        #startScreen {
+            position: absolute;
+            color: pink;
+            text-align: center;
+        }
+        #startButton {
+            background: pink;
+            border: none;
+            padding: 15px 30px;
+            font-size: 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            width: 100%;
+            display: none;
+            justify-content: center;
+            gap: 20px;
+        }
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 192, 203, 0.5);
+            border: none;
+            border-radius: 50%;
+            font-size: 24px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="startScreen">
+        <h1>Rainbow Road to Love</h1>
+        <button id="startButton">Start Game</button>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="controls">
+        <button class="control-btn" id="leftBtn">←</button>
+        <button class="control-btn" id="upBtn">↑</button>
+        <button class="control-btn" id="downBtn">↓</button>
+        <button class="control-btn" id="rightBtn">→</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('startScreen');
+        const startButton = document.getElementById('startButton');
+        const controls = document.getElementById('controls');
+
+        // Set canvas size
+        canvas.width = 320;
+        canvas.height = 480;
+
+        // Game variables
+        let gameState = 'start';
+        let level = 1;
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 30,
+            width: 20,
+            height: 20,
+            speed: 3
+        };
+
+        let cars = [];
+        const rainbowColors = [
+            '#FF0000', '#FF7F00', '#FFFF00', 
+            '#00FF00', '#0000FF', '#4B0082', '#9400D3'
+        ];
+
+        // Game state management
+        startButton.onclick = () => {
+            gameState = 'playing';
+            startScreen.style.display = 'none';
+            controls.style.display = 'flex';
+            resetLevel();
+        };
+
+        function resetLevel() {
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 30;
+            cars = [];
+            spawnCars();
+        }
+
+        function spawnCars() {
+            const numLanes = Math.min(level + 1, 7);
+            const laneSpacing = canvas.height / (numLanes + 1);
+            
+            for(let i = 0; i < numLanes; i++) {
+                const laneY = laneSpacing * (i + 1);
+                const numCars = Math.min(level, 3);
+                
+                for(let j = 0; j < numCars; j++) {
+                    cars.push({
+                        x: Math.random() * canvas.width,
+                        y: laneY,
+                        width: 40,
+                        height: 20,
+                        speed: (Math.random() * 2 + 2) * (Math.random() < 0.5 ? 1 : -1)
+                    });
+                }
+            }
+        }
+
+        // Touch controls
+        let touchControls = {
+            up: false,
+            down: false,
+            left: false,
+            right: false
+        };
+
+        document.getElementById('upBtn').ontouchstart = () => touchControls.up = true;
+        document.getElementById('upBtn').ontouchend = () => touchControls.up = false;
+        document.getElementById('downBtn').ontouchstart = () => touchControls.down = true;
+        document.getElementById('downBtn').ontouchend = () => touchControls.down = false;
+        document.getElementById('leftBtn').ontouchstart = () => touchControls.left = true;
+        document.getElementById('leftBtn').ontouchend = () => touchControls.left = false;
+        document.getElementById('rightBtn').ontouchstart = () => touchControls.right = true;
+        document.getElementById('rightBtn').ontouchend = () => touchControls.right = false;
+
+        function updatePlayer() {
+            if(touchControls.left && player.x > 0) player.x -= player.speed;
+            if(touchControls.right && player.x < canvas.width - player.width) player.x += player.speed;
+            if(touchControls.up && player.y > 0) player.y -= player.speed;
+            if(touchControls.down && player.y < canvas.height - player.height) player.y += player.speed;
+        }
+
+        function updateCars() {
+            cars.forEach(car => {
+                car.x += car.speed;
+                if(car.speed > 0 && car.x > canvas.width) {
+                    car.x = -car.width;
+                } else if(car.speed < 0 && car.x + car.width < 0) {
+                    car.x = canvas.width;
+                }
+            });
+        }
+
+        function checkCollision() {
+            return cars.some(car => {
+                return player.x < car.x + car.width &&
+                       player.x + player.width > car.x &&
+                       player.y < car.y + car.height &&
+                       player.y + player.height > car.y;
+            });
+        }
+
+        function drawGame() {
+            // Clear canvas
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw rainbow crossings
+            const numLanes = Math.min(level + 1, 7);
+            const laneSpacing = canvas.height / (numLanes + 1);
+            
+            for(let i = 0; i < numLanes; i++) {
+                const laneY = laneSpacing * (i + 1);
+                ctx.fillStyle = rainbowColors[i];
+                ctx.fillRect(0, laneY - 10, canvas.width, 20);
+            }
+
+            // Draw cars
+            cars.forEach(car => {
+                ctx.fillStyle = 'red';
+                ctx.fillRect(car.x, car.y - car.height/2, car.width, car.height);
+            });
+
+            // Draw player
+            ctx.fillStyle = 'pink';
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+
+            // Draw level
+            ctx.fillStyle = 'white';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Level: ${level}/7`, 10, 30);
+        }
+
+        function showLoveMessage() {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'purple';
+            ctx.font = '30px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('I Love You! ❤️', canvas.width/2, canvas.height/2);
+            
+            setTimeout(() => {
+                level = 1;
+                gameState = 'start';
+                startScreen.style.display = 'block';
+                controls.style.display = 'none';
+            }, 3000);
+        }
+
+        function gameLoop() {
+            if(gameState === 'playing') {
+                updatePlayer();
+                updateCars();
+                
+                if(checkCollision()) {
+                    resetLevel();
+                }
+                
+                if(player.y <= 0) {
+                    if(level < 7) {
+                        level++;
+                        resetLevel();
+                    } else {
+                        showLoveMessage();
+                        return;
+                    }
+                }
+                
+                drawGame();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
